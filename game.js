@@ -1,142 +1,172 @@
-const boardSize = 8;
-const mineCount = 10;
-let board = [];
-let minePositions = [];
-
-document.addEventListener("DOMContentLoaded", () => {
-  const gameBoard = document.getElementById("game-board");
-  const resetButton = document.getElementById("reset-button");
-  const statusLabel = document.getElementById("status-label");
-
-  resetButton.addEventListener("click", resetGame);
-
-  function resetGame() {
-    board = [];
-    minePositions = [];
-    statusLabel.textContent = "Game reset! Good luck.";
-    gameBoard.innerHTML = "";
-    setupBoard();
-    renderBoard();
-  }
-
-  function setupBoard() {
-    // Initialize board and mines
-    for (let i = 0; i < boardSize; i++) {
-      board[i] = [];
-      for (let j = 0; j < boardSize; j++) {
-        board[i][j] = { revealed: false, mine: false, flagged: false, adjacentMines: 0 };
-      }
+document.addEventListener('DOMContentLoaded', () => {
+    // ----- Constants -----
+    const GRID_SIZE = 10;
+    const MINES = 15;
+    let gameGrid = [];
+    let gameActive = false;
+    let startTime = 0;
+    let timerInterval = null;
+  
+    // Firebase refs
+    const auth = firebase.auth();
+    const db   = firebase.database();
+  
+    // Seeded RNG (xmur3 + 32‑bit ARX)
+    function createSeededRandom(seed) {
+      let value = xmur3(seed)();
+      return () => (value = Math.imul(value ^ (value >>> 16), 2246822507), 
+                   Math.imul(value ^ (value >>> 13), 3266489909) ^ (value >>> 16));
     }
-    placeMines();
-    calculateAdjacentMines();
-  }
-
-  function placeMines() {
-    while (minePositions.length < mineCount) {
-      const position = [randomInt(boardSize), randomInt(boardSize)];
-      if (!minePositions.some(([x, y]) => x === position[0] && y === position[1])) {
-        minePositions.push(position);
-        board[position[0]][position[1]].mine = true;
-      }
+    function xmur3(str) {
+      let h = 1779033703 ^ str.length;
+      for (let i = 0; i < str.length; i++)
+        h = Math.imul(h ^ str.charCodeAt(i), 3432918353),
+        h = (h << 13) | (h >>> 19);
+      return () => h = Math.imul(h ^ (h >>> 16), 2246822507) ^ h;
     }
-  }
-
-  function calculateAdjacentMines() {
-    for (const [x, y] of minePositions) {
-      for (let i = -1; i <= 1; i++) {
-        for (let j = -1; j <= 1; j++) {
-          const nx = x + i, ny = y + j;
-          if (isValidCell(nx, ny) && !board[nx][ny].mine) {
-            board[nx][ny].adjacentMines++;
-          }
+  
+    // ----- UI Helpers -----
+    function renderGrid() {
+      const gridEl = document.getElementById('grid');
+      gridEl.innerHTML = '';
+      gameActive = true;
+  
+      for (let x = 0; x < GRID_SIZE; x++) {
+        for (let y = 0; y < GRID_SIZE; y++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+          cell.dataset.x = x;
+          cell.dataset.y = y;
+          cell.addEventListener('click', onCellClick);
+          cell.addEventListener('contextmenu', onCellFlag);
+          gridEl.appendChild(cell);
         }
       }
     }
-  }
-
-  function renderBoard() {
-    gameBoard.style.gridTemplateColumns = `repeat(${boardSize}, auto)`;
-    for (let i = 0; i < boardSize; i++) {
-      for (let j = 0; j < boardSize; j++) {
-        const cell = document.createElement("div");
-        cell.classList.add("cell");
-        cell.dataset.row = i;
-        cell.dataset.col = j;
-        cell.addEventListener("click", handleCellClick);
-        cell.addEventListener("contextmenu", handleCellRightClick);
-        gameBoard.appendChild(cell);
+  
+    function onCellClick(e) {
+      if (!gameActive) return;
+      const x = +e.target.dataset.x, y = +e.target.dataset.y;
+      if (gameGrid[x][y].flagged) return;
+      if (gameGrid[x][y].isMine) return gameOver(false);
+      revealCell(x, y);
+      checkWin();
+    }
+  
+    function onCellFlag(e) {
+      e.preventDefault();
+      if (!gameActive) return;
+      const x = +e.target.dataset.x, y = +e.target.dataset.y;
+      gameGrid[x][y].flagged = !gameGrid[x][y].flagged;
+      e.target.textContent = gameGrid[x][y].flagged ? '🚩' : '';
+    }
+  
+    function revealCell(x, y) {
+      if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
+      const cellData = gameGrid[x][y];
+      if (cellData.revealed || cellData.flagged) return;
+  
+      cellData.revealed = true;
+      const el = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+      el.classList.add('revealed');
+  
+      const count = countNeighbors(x, y);
+      if (count) {
+        el.textContent = count;
+      } else {
+        for (let dx = -1; dx <= 1; dx++)
+          for (let dy = -1; dy <= 1; dy++)
+            revealCell(x + dx, y + dy);
       }
     }
-  }
-
-  function handleCellClick(event) {
-    const row = parseInt(event.target.dataset.row);
-    const col = parseInt(event.target.dataset.col);
-    revealCell(row, col);
-  }
-
-  function handleCellRightClick(event) {
-    event.preventDefault();
-    const row = parseInt(event.target.dataset.row);
-    const col = parseInt(event.target.dataset.col);
-    toggleFlag(row, col);
-  }
-
-  function revealCell(row, col) {
-    if (!isValidCell(row, col) || board[row][col].revealed || board[row][col].flagged) {
-      return;
+  
+    function countNeighbors(x, y) {
+      let cnt = 0;
+      for (let dx = -1; dx <= 1; dx++)
+        for (let dy = -1; dy <= 1; dy++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx>=0 && nx<GRID_SIZE && ny>=0 && ny<GRID_SIZE)
+            if (gameGrid[nx][ny].isMine) cnt++;
+        }
+      return cnt;
     }
-    const cell = getCellElement(row, col);
-    board[row][col].revealed = true;
-    cell.classList.add("revealed");
-    if (board[row][col].mine) {
-      cell.classList.add("mine");
-      statusLabel.textContent = "Game Over!";
-      showAllMines();
-    } else {
-      cell.textContent = board[row][col].adjacentMines || "";
-      if (board[row][col].adjacentMines === 0) {
-        revealAdjacentCells(row, col);
+  
+    function checkWin() {
+      const safeLeft = gameGrid.flat()
+        .filter(c => !c.isMine && !c.revealed).length;
+      if (safeLeft === 0) gameOver(true);
+    }
+  
+    function gameOver(won) {
+      gameActive = false;
+      clearInterval(timerInterval);
+      alert(won ? '🎉 You won!' : '💥 Game Over');
+      // … leaderboard & streak logic …
+    }
+  
+    // ----- Timer -----
+    function startTimer() {
+      document.getElementById('timer').textContent = '0';
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        document.getElementById('timer').textContent =
+          Math.floor((Date.now() - startTime) / 1000);
+      }, 1000);
+    }
+  
+    // ----- Persistence / Daily Seed -----
+    function initGame() {
+      const today = new Date().toISOString().slice(0, 10);
+      const saved = JSON.parse(localStorage.getItem('currentGame') || 'null');
+      if (saved && saved.seed === today) {
+        gameGrid = saved.grid;
+        startTime = saved.startTime;
+      } else {
+        const rand = createSeededRandom(today);
+        gameGrid = Array.from({ length: GRID_SIZE }, () =>
+          Array.from({ length: GRID_SIZE }, () => ({
+            isMine: rand() % (GRID_SIZE * GRID_SIZE) < MINES,
+            revealed: false,
+            flagged: false
+          }))
+        );
       }
+      renderGrid();
+      startTimer();
     }
-  }
-
-  function toggleFlag(row, col) {
-    if (!isValidCell(row, col) || board[row][col].revealed) {
-      return;
-    }
-    const cell = getCellElement(row, col);
-    board[row][col].flagged = !board[row][col].flagged;
-    cell.classList.toggle("flagged");
-  }
-
-  function revealAdjacentCells(row, col) {
-    for (let i = -1; i <= 1; i++) {
-      for (let j = -1; j <= 1; j++) {
-        revealCell(row + i, col + j);
-      }
-    }
-  }
-
-  function showAllMines() {
-    for (const [x, y] of minePositions) {
-      const cell = getCellElement(x, y);
-      cell.classList.add("mine");
-    }
-  }
-
-  function getCellElement(row, col) {
-    return document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-  }
-
-  function randomInt(max) {
-    return Math.floor(Math.random() * max);
-  }
-
-  function isValidCell(row, col) {
-    return row >= 0 && col >= 0 && row < boardSize && col < boardSize;
-  }
-
-  // Initialize the game on load
-  resetGame();
-});
+  
+    setInterval(() => {
+      if (gameActive)
+        localStorage.setItem('currentGame',
+          JSON.stringify({ seed: new Date().toISOString().slice(0,10),
+                           grid: gameGrid,
+                           startTime }));
+    }, 5000);
+  
+    // ----- Auth & Leaderboard Wiring -----
+    document.getElementById('google-login')
+      .addEventListener('click', () => {
+        auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+            .catch(e => alert('Login error: '+e.message));
+      });
+  
+    document.getElementById('sign-out')
+      .addEventListener('click', () => auth.signOut());
+  
+    auth.onAuthStateChanged(user => {
+      document.getElementById('game-section')
+              .classList.toggle('hidden', !user && auth.currentUser.isAnonymous);
+      document.getElementById('auth-section')
+              .classList.toggle('hidden', !!user && !user.isAnonymous);
+      const ui = document.getElementById('user-info');
+      if (user && !user.isAnonymous) {
+        ui.classList.remove('hidden');
+        document.getElementById('username').textContent = user.displayName;
+      } else ui.classList.add('hidden');
+  
+      // Always kick off game & leaderboard
+      initGame();
+      // loadLeaderboard(); updateStreakDisplay(); …
+    });
+  });
+  
