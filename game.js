@@ -11,58 +11,78 @@ document.addEventListener('DOMContentLoaded', () => {
     const auth = firebase.auth();
     const database = firebase.database();
 
-    // Game Initialization
-    function initGame() {
-        const today = new Date();
-        const seed = today.toISOString().split('T')[0];
-        gameActive = true;
-        startTime = Date.now();
-        document.getElementById('timer').textContent = '0';
-        clearInterval(timerInterval);
-        
-        // Initialize grid
-        gameGrid = Array(GRID_SIZE).fill().map((_, i) => 
-            Array(GRID_SIZE).fill().map((_, j) => ({
-                isMine: Math.random() < MINES/(GRID_SIZE*GRID_SIZE),
-                revealed: false,
-                flagged: false
-            }))
-        );
+    // Seeded random number generator
+    function createSeededRandom(seed) {
+        let value = xmur3(seed);
+        return () => (value += 0x6D2B79F5) >>> 0;
+    }
 
-        // Create grid cells
-        const gridContainer = document.getElementById('grid');
-        gridContainer.innerHTML = '';
-        
-        for(let i = 0; i < GRID_SIZE; i++) {
-            for(let j = 0; j < GRID_SIZE; j++) {
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-                cell.dataset.x = i;
-                cell.dataset.y = j;
-                cell.addEventListener('click', handleCellClick);
-                cell.addEventListener('contextmenu', handleRightClick);
-                gridContainer.appendChild(cell);
-            }
+    function xmur3(str) {
+        for (var i = 0, h = 1779033703 ^ str.length; i < str.length; i++)
+            h = Math.imul(h ^ str.charCodeAt(i), 3432918353),
+                h = h << 13 | h >>> 19;
+        return function () {
+            h = Math.imul(h ^ h >>> 16, 2246822507);
+            h = Math.imul(h ^ h >>> 13, 3266489909);
+            return (h ^= h >>> 16) >>> 0;
         }
     }
 
+    // Daily reset check
+    function checkDailyReset() {
+        const lastPlayDate = localStorage.getItem('lastPlayDate');
+        const today = new Date().toISOString().slice(0, 10);
+
+        if (lastPlayDate !== today) {
+            localStorage.removeItem('currentGame');
+            localStorage.setItem('lastPlayDate', today);
+        }
+    }
+
+    // Modified game initialization
+    function initGame() {
+        const today = new Date().toISOString().slice(0, 10);
+        const seed = today; // Daily seed
+
+        // Try to load saved game
+        const savedGame = localStorage.getItem('currentGame');
+        if (savedGame && savedGame.seed === today) {
+            gameGrid = savedGame.grid;
+            startTime = savedGame.startTime;
+        } else {
+            // Generate new grid using seeded random
+            const rand = createSeededRandom(seed);
+            gameGrid = Array(GRID_SIZE).fill().map((_, i) =>
+                Array(GRID_SIZE).fill().map((_, j) => ({
+                    isMine: (rand() % (GRID_SIZE * GRID_SIZE)) < MINES,
+                    revealed: false,
+                    flagged: false
+                }))
+            );
+            startTime = Date.now();
+        }
+
+        renderGrid();
+        startTimer();
+    }
+
     function handleCellClick(e) {
-        if(!gameActive) return;
+        if (!gameActive) return;
         const x = parseInt(e.target.dataset.x);
         const y = parseInt(e.target.dataset.y);
-        
-        if(gameGrid[x][y].isMine) {
+
+        if (gameGrid[x][y].isMine) {
             gameOver(false);
             return;
         }
-        
+
         revealCell(x, y);
         checkWin();
     }
 
     function handleRightClick(e) {
         e.preventDefault();
-        if(!gameActive) return;
+        if (!gameActive) return;
         const x = parseInt(e.target.dataset.x);
         const y = parseInt(e.target.dataset.y);
         gameGrid[x][y].flagged = !gameGrid[x][y].flagged;
@@ -70,21 +90,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function revealCell(x, y) {
-        if(x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
-        if(gameGrid[x][y].revealed || gameGrid[x][y].flagged) return;
-        
+        if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
+        if (gameGrid[x][y].revealed || gameGrid[x][y].flagged) return;
+
         gameGrid[x][y].revealed = true;
         const cell = document.querySelector(`[data-x="${x}"][data-y="${y}"]`);
         cell.classList.add('revealed');
-        
+
         // Get neighbor mine count
         const count = countNeighborMines(x, y);
-        if(count > 0) {
+        if (count > 0) {
             cell.textContent = count;
         } else {
             // Reveal neighbors
-            for(let dx = -1; dx <= 1; dx++) {
-                for(let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
                     revealCell(x + dx, y + dy);
                 }
             }
@@ -93,12 +113,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function countNeighborMines(x, y) {
         let count = 0;
-        for(let dx = -1; dx <= 1; dx++) {
-            for(let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
                 const nx = x + dx;
                 const ny = y + dy;
-                if(nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
-                    if(gameGrid[nx][ny].isMine) count++;
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                    if (gameGrid[nx][ny].isMine) count++;
                 }
             }
         }
@@ -108,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function gameOver(won) {
         gameActive = false;
         clearInterval(timerInterval);
-        if(won) {
+        if (won) {
             alert('Congratulations! You won!');
             const time = Math.floor((Date.now() - startTime) / 1000);
             updateLeaderboard(time);
@@ -120,14 +140,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function checkWin() {
         let unrevealedSafeCells = 0;
-        for(let i = 0; i < GRID_SIZE; i++) {
-            for(let j = 0; j < GRID_SIZE; j++) {
-                if(!gameGrid[i][j].isMine && !gameGrid[i][j].revealed) {
+        for (let i = 0; i < GRID_SIZE; i++) {
+            for (let j = 0; j < GRID_SIZE; j++) {
+                if (!gameGrid[i][j].isMine && !gameGrid[i][j].revealed) {
                     unrevealedSafeCells++;
                 }
             }
         }
-        if(unrevealedSafeCells === 0) gameOver(true);
+        if (unrevealedSafeCells === 0) gameOver(true);
     }
 
     // Authentication
@@ -139,22 +159,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Modify auth state handler
     auth.onAuthStateChanged(user => {
         const authSection = document.getElementById('auth-section');
         const gameSection = document.getElementById('game-section');
-        
-        //if(user) {
-        authSection.classList.add('hidden');
+
+        // Always show game section
         gameSection.classList.remove('hidden');
+        authSection.classList.toggle('hidden', !!user);
+
+        // Initialize game for all users
+        checkDailyReset();
         initGame();
-        startTimer();
         loadLeaderboard();
-        updateStreakDisplay();
-        //} else {
-        //    authSection.classList.remove('hidden');
-        //    gameSection.classList.add('hidden');
-        //}
+
+        if (user) {
+            updateStreakDisplay();
+        }
     });
+
+    // Add anonymous play
+    function initAnonymousUser() {
+        auth.signInAnonymously().catch(error => {
+            console.error('Anonymous auth failed:', error);
+        });
+    }
+
+    // Auto-init anonymous user if not logged in
+    if (!auth.currentUser) initAnonymousUser();
 
     // Timer
     function startTimer() {
@@ -165,36 +197,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
-    // Leaderboard
     async function updateLeaderboard(time) {
         const user = auth.currentUser;
-        if(!user) return;
-
-        const today = new Date().toISOString().split('T')[0];
-        const entry = {
-            username: user.displayName || 'Anonymous',
-            time: time,
-            timestamp: Date.now()
-        };
-
-        try {
-            await database.ref(`leaderboards/${today}`).push(entry);
-            loadLeaderboard();
-        } catch (error) {
-            console.error('Leaderboard update failed:', error);
+        
+        // Only logged-in users can be on leaderboard
+        if(!user || user.isAnonymous) {
+            alert('Sign in to save your score!');
+            return;
         }
+    
+        // Rest of leaderboard code...
     }
+    
+    // Save game state to localStorage
+    function saveGameState() {
+        localStorage.setItem('currentGame', JSON.stringify({
+            seed: new Date().toISOString().slice(0,10),
+            grid: gameGrid,
+            startTime: startTime
+        }));
+    }
+    
+    // Add autosave
+    setInterval(() => {
+        if(gameActive) saveGameState();
+    }, 5000);
 
     async function loadLeaderboard() {
         const today = new Date().toISOString().split('T')[0];
         try {
             const snapshot = await database.ref(`leaderboards/${today}`).once('value');
             const scores = snapshot.val() || {};
-            
+
             const sorted = Object.values(scores)
                 .sort((a, b) => a.time - b.time)
                 .slice(0, 10);
-            
+
             const leaderboardHTML = sorted
                 .map((score, index) => `
                     <div class="leaderboard-entry">
@@ -204,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `)
                 .join('');
-            
+
             document.getElementById('leaderboard').innerHTML = leaderboardHTML || '<div>No scores yet!</div>';
         } catch (error) {
             console.error('Leaderboard load failed:', error);
@@ -214,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Streak System
     async function updateStreakDisplay() {
         const user = auth.currentUser;
-        if(!user) return;
+        if (!user) return;
 
         try {
             const snapshot = await database.ref(`users/${user.uid}`).once('value');
@@ -227,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function updateStreak() {
         const user = auth.currentUser;
-        if(!user) return;
+        if (!user) return;
 
         try {
             const userRef = database.ref(`users/${user.uid}`);
@@ -237,8 +275,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const today = new Date();
 
             let newStreak = 1;
-            if(lastPlayed) {
-                if(isSameDay(lastPlayed, today)) {
+            if (lastPlayed) {
+                if (isSameDay(lastPlayed, today)) {
                     return; // Already played today
                 }
                 newStreak = isYesterday(lastPlayed, today) ? (userData.streak || 0) + 1 : 1;

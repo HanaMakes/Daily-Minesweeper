@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Daily Minesweeper</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container">
         <h1>Minesweeple</h1>
@@ -22,15 +24,34 @@
             <div id="grid"></div>
             <div id="leaderboard"></div>
         </div>
+        <!-- Add this to your HTML -->
+        <div id="user-info" class="hidden">
+            <span id="username"></span>
+            <button onclick="firebase.auth().signOut()">Sign Out</button>
+        </div>
+
+        <script>
+            // Update auth display
+            auth.onAuthStateChanged(user => {
+                const userInfo = document.getElementById('user-info');
+                if (user && !user.isAnonymous) {
+                    userInfo.classList.remove('hidden');
+                    document.getElementById('username').textContent = user.displayName;
+                } else {
+                    userInfo.classList.add('hidden');
+                }
+            });
+        </script>
     </div>
 
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    
+
     <!-- Our scripts -->
     <script src="firebase-config.js"></script>
     <script src="game.js"></script>
 </body>
+
 </html>
