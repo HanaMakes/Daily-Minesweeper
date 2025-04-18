@@ -143,17 +143,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const authSection = document.getElementById('auth-section');
         const gameSection = document.getElementById('game-section');
         
-        if(user) {
-            authSection.classList.add('hidden');
-            gameSection.classList.remove('hidden');
-            initGame();
-            startTimer();
-            loadLeaderboard();
-            updateStreakDisplay();
-        } else {
-            authSection.classList.remove('hidden');
-            gameSection.classList.add('hidden');
-        }
+        //if(user) {
+        authSection.classList.add('hidden');
+        gameSection.classList.remove('hidden');
+        initGame();
+        startTimer();
+        loadLeaderboard();
+        updateStreakDisplay();
+        //} else {
+        //    authSection.classList.remove('hidden');
+        //    gameSection.classList.add('hidden');
+        //}
     });
 
     // Timer
