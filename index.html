@@ -1,42 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Daily Minesweeper</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minesweeper</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>Minesweeple</h1>
-    <div id="auth-section">
-      <button id="google-login" class="sign-in-button">
-        <img src="https://img.icons8.com/color/24/000000/google-logo.png" alt="Google logo" />
-        Sign in with Google
-      </button>
-    </div>
-
-    <div id="game-section" class="hidden">
-      <div id="header">
-        <div>Time: <span id="timer">0</span></div>
-        <div>Streak: <span id="streak">0</span></div>
-      </div>
-      <div id="grid"></div>
-      <div id="leaderboard"></div>
-    </div>
-
-    <div id="user-info" class="hidden">
-      <span id="username"></span>
-      <button id="sign-out">Sign Out</button>
-    </div>
-  </div>
-
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
-  <!-- Your config + game logic -->
-  <script src="firebase-config.js"></script>
+  <header>
+    <h1>Minesweeper</h1>
+    <button id="reset-button">Reset Game</button>
+    <label id="status-label">Welcome to Minesweeper!</label>
+  </header>
+  <main>
+    <div id="game-board"></div>
+  </main>
   <script src="game.js"></script>
 </body>
 </html>
