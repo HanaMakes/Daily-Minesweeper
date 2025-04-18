@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Daily Minesweeper</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Daily Minesweeper</h1>
+        <div id="auth-section">
+            <button id="google-login">Sign in with Google</button>
+        </div>
+        <div id="game-section" class="hidden">
+            <div id="header">
+                <div>Time: <span id="timer">0</span></div>
+                <div>Streak: <span id="streak">0</span></div>
+            </div>
+            <div id="grid"></div>
+            <div id="leaderboard"></div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    
+    <!-- Our scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
