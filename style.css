@@ -29,7 +29,10 @@ header {
   font-size: 18px;
   cursor: pointer;
 }
-
+.cell.highlight {
+  background-color: lightgreen; /* Highlight color */
+  font-weight: bold;
+}
 .cell.revealed {
   background-color: #fff;
   cursor: default;
