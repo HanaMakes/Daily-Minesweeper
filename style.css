@@ -1,4 +1,16 @@
-#google-login {
+body {
+    font-family: sans-serif;
+    background: #eef2f3;
+    display: flex;
+    justify-content: center;
+    padding: 2rem;
+  }
+  
+  .container {
+    width: max-content;
+  }
+  
+  #google-login {
     padding: 10px 20px;
     background-color: #4285f4;
     color: white;
@@ -6,33 +18,51 @@
     border-radius: 4px;
     cursor: pointer;
     font-size: 16px;
-}
-
-#google-login:hover {
+  }
+  
+  #google-login:hover {
     background-color: #357abd;
-}
-
-#header {
+  }
+  
+  #header {
     display: flex;
     justify-content: space-between;
     margin-bottom: 20px;
     padding: 10px;
     background-color: white;
     border-radius: 5px;
-}
-
-.leaderboard-entry {
+  }
+  
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(10, 30px);
+    gap: 2px;
+    margin-bottom: 20px;
+  }
+  
+  .cell {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #ccc;
+    cursor: pointer;
+    user-select: none;
+    font-weight: bold;
+    font-size: 16px;
+  }
+  
+  .cell.revealed {
+    background-color: #f8f8f8;
+    cursor: default;
+  }
+  
+  .leaderboard-entry {
     display: flex;
     justify-content: space-between;
     padding: 5px 0;
     border-bottom: 1px solid #eee;
-}
-
-.cell {
-    font-weight: bold;
-    font-size: 18px;
-}
-
-.cell.revealed {
-    background-color: #f8f8f8;
-}
+  }
+  
