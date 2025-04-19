@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
         cell.dataset.col = j;
         cell.addEventListener("click", handleCellClick);
         cell.addEventListener("contextmenu", handleCellRightClick);
-        cell.addEventListener("dblclick", handleCellDoubleClick); // Add double-click listener
+        cell.addEventListener("dblclick", handleCellDoubleClick); // Add2 double-click listener
         cell.addEventListener("mousedown", handleMouseDown); // Handle double right-click
         gameBoard.appendChild(cell);
       }
